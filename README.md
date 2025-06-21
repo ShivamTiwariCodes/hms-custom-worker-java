@@ -1,33 +1,31 @@
-
 ---
 
-# HMS Auth Service
+# HMS Temporal Worker
 
-**HMS Auth Service** is a Spring Boot microservice responsible for managing authentication in the **Hospital Management System (HMS)**. It issues and validates JWT tokens, enabling secure, stateless access across other HMS services.
+**HMS Temporal Worker** is a Spring Boot-based Temporal microservice responsible for executing asynchronous workflows and activities in the **Hospital Management System (HMS)**. It enables long-running, fault-tolerant tasks like patient processing, appointment handling, and custom SDK-based actions using Temporal.io.
 
 ---
 
 ## 📦 Features
 
-* User login and JWT issuance
-* Token validation and expiration handling
-* Stateless authentication with Spring Security
-* Configurable MySQL and MongoDB integrations
-* Thymeleaf support (UI templates, if used)
-* Built with Spring Boot and Gradle
+* Java-based Temporal Workflow & Activity execution
+* Custom SDK handler invocation per hospital
+* Dynamic code loading (via JARs)
+* Workflow-task queue based execution
+* Built with Spring Boot, Temporal SDK, and Gradle
 
 ---
 
 ## 🚀 Getting Started
 
-Follow these instructions to run the Auth Service locally.
+Follow these instructions to run the HMS Temporal Worker locally.
 
 ### ✅ Prerequisites
 
-* Java 17+ (or Java 11+)
+* Java 17+
 * Gradle 7+
-* MySQL (running on `localhost:3306`)
-* MongoDB (running on `localhost:27017`)
+* [Temporal Server](https://docs.temporal.io) running locally or remotely
+* MongoDB (if persisting workflow input/output)
 
 ---
 
@@ -36,32 +34,26 @@ Follow these instructions to run the Auth Service locally.
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/your-org/hms-auth-service.git
-   cd hms-auth-service
+   git clone https://github.com/your-org/hms-temporal-worker.git
+   cd hms-temporal-worker
    ```
 
 2. **Configure Application Properties**
 
-   The application uses Spring’s default property files. Below is the essential config (`application.properties` or `.yml`):
+   Update `application.properties` to match your environment:
 
    ```properties
-   spring.application.name=authService
-   server.port=8081
+   spring.application.name=hmsTemporalWorker
+   server.port=8083
 
-   # MySQL Database Configuration
-   spring.datasource.url=jdbc:mysql://localhost:3306/hms
-   spring.datasource.username=root
-   spring.datasource.password=root
-   spring.jpa.hibernate.ddl-auto=update
-   spring.jpa.show-sql=true
+   # Temporal Configuration
+   temporal.namespace=default
+   temporal.taskQueue=hms-task-queue
 
-   # MongoDB Configuration
+   # MongoDB (if required)
    spring.data.mongodb.host=localhost
    spring.data.mongodb.port=27017
    spring.data.mongodb.database=hms
-
-   # Thymeleaf
-   spring.thymeleaf.cache=false
    ```
 
 3. **Build the Application**
@@ -70,7 +62,7 @@ Follow these instructions to run the Auth Service locally.
    ./gradlew build
    ```
 
-4. **Run the Service**
+4. **Run the Worker**
 
    ```bash
    ./gradlew bootRun
@@ -78,54 +70,71 @@ Follow these instructions to run the Auth Service locally.
 
 ---
 
-## 📁 Project Structure
+## 🔁 HMS Temporal Workflow Flowchart
 
-```text
-hms-auth-service/
-├── src/main/java/
-│   ├── com/hms/auth/         # Main package
-│   ├── config/               # JWT and Spring Security configuration
-│   ├── controller/           # REST endpoints
-│   ├── service/              # Auth logic and token generation
-│   ├── model/                # DTOs, entities
-├── src/test/                # Unit and integration tests
-├── build.gradle             # Gradle build script
-├── application.properties   # Application configuration
+```mermaid
+graph TD
+    A[Client Service (e.g. Core)] -->|REST Call| B[WorkflowClient]
+    B -->|Start Workflow| C[HmsWorkflowImpl]
+    C -->|Delegates| D[CustomHandler (from SDK JAR)]
+    C -->|Invokes| E[Activities Bean]
+    E -->|Performs| F[External Operation or MongoDB Save]
+    F -->|Returns Result| E --> C --> B --> A
 ```
 
 ---
 
-## 🔐 Authentication Flow
+## 📁 Project Structure
 
-1. `POST /auth/login`: Accepts credentials and issues JWT
-2. `Authorization: Bearer <token>`: Token passed in header for subsequent requests
-3. Spring Security filter validates the token and sets user context
-4. Optional: `POST /auth/refresh` if refresh token support is added
+```text
+hms-temporal-worker/
+├── src/main/java/
+│   ├── com/hms/worker/            # Entry point
+│   ├── workflow/                  # Workflow interfaces and impl
+│   ├── activity/                  # Activity interfaces and impl
+│   ├── config/                    # Temporal config beans
+│   ├── handler/                  # Custom JAR loader and SDK dispatching
+├── src/test/                     # Unit tests
+├── build.gradle                  # Gradle config
+├── application.properties        # Configuration
+```
+
+---
+
+## 🧠 Key Concepts
+
+| Component         | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `HmsWorkflow`     | Defines the main Temporal workflow contract                     |
+| `HmsWorkflowImpl` | Implements the workflow logic; delegates to activities/handlers |
+| `HmsActivities`   | Contains long-running or side-effect operations                 |
+| `CustomHandler`   | SDK-based handler logic dynamically loaded per hospital         |
+| `taskQueue`       | Temporal Task Queue the worker listens on                       |
 
 ---
 
 ## 🛠️ Useful Commands
 
-| Command             | Description                  |
-| ------------------- | ---------------------------- |
-| `./gradlew build`   | Build the application        |
-| `./gradlew bootRun` | Run locally with Spring Boot |
-| `./gradlew test`    | Run all tests                |
-| `./gradlew clean`   | Clean build artifacts        |
+| Command             | Description               |
+| ------------------- | ------------------------- |
+| `./gradlew build`   | Build the worker          |
+| `./gradlew bootRun` | Start the Temporal worker |
+| `./gradlew test`    | Run unit tests            |
+| `./gradlew clean`   | Remove build artifacts    |
 
 ---
 
 ## 📚 Documentation
 
-* **API Reference**: See [`docs/api.md`](docs/api.md)
-* **Auth Flow Diagram**: See [`docs/auth-flow.md`](docs/auth-flow.md)
+* **Workflow Lifecycle**: See [`docs/workflow-flow.md`](docs/workflow-flow.md)
+* **Handler SDK Usage**: See [`docs/custom-handler.md`](docs/custom-handler.md)
 
 ---
 
 ## 🙋 Support
 
-* Open an [issue](https://github.com/your-org/hms-auth-service/issues)
-* Contact project maintainers (see `build.gradle`)
+* Open an [issue](https://github.com/your-org/hms-temporal-worker/issues)
+* Contact project maintainers in the `build.gradle`
 
 ---
 
@@ -134,11 +143,3 @@ hms-auth-service/
 This project is licensed under the [MIT License](LICENSE).
 
 ---
-
-Let me know if you'd like to include:
-
-* Swagger/OpenAPI docs
-* OAuth or refresh token support
-* CI/CD or Docker setup instructions
-
-Ready to move to the next README?
